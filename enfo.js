@@ -1,0 +1,141 @@
+function getAllUrlParams(e) {
+  var t = e ? e.split("?")[1] : window.location.search.slice(1),
+    n = {};
+  if (t)
+    for (var a = (t = t.split("#")[0]).split("&"), i = 0; i < a.length; i++) {
+      var s = a[i].split("="),
+        o = s[0],
+        r = void 0 === s[1] || s[1];
+      if (
+        ((o = o.toLowerCase()),
+        "string" == typeof r && "data" !== o && (r = r.toLowerCase()),
+        o.match(/\[(\d+)?\]$/))
+      ) {
+        var p = o.replace(/\[(\d+)?\]/, "");
+        if ((n[p] || (n[p] = []), o.match(/\[\d+\]$/))) {
+          var l = /\[(\d+)\]/.exec(o)[1];
+          n[p][l] = r;
+        } else n[p].push(r);
+      } else
+        n[o]
+          ? n[o] && "string" == typeof n[o]
+            ? ((n[o] = [n[o]]), n[o].push(r))
+            : n[o].push(r)
+          : (n[o] = r);
+    }
+  return n;
+}
+var endTime,
+  pathArray = window.location.pathname.split("/"),
+  publicKey = pathArray[1],
+  startTime = Date.now();
+function setupEnforcement(e) {
+  var t = getAllUrlParams(window.location.href);
+  endTime || (endTime = Date.now()),
+    e.setConfig({
+      selector: "#arkose",
+      styleTheme: t.theme,
+      language: t.mkt,
+      data: { blob: decodeURIComponent(t.data) },
+      mode: "inline",
+      apiLoadTime: {
+        start: startTime,
+        end: endTime,
+        diff: endTime - startTime,
+      },
+      onCompleted: function (e) {
+        parent.postMessage(
+          JSON.stringify({
+            eventId: "challenge-complete",
+            publicKey: publicKey,
+            payload: { sessionToken: e.token },
+          }),
+          "*",
+        );
+      },
+      onReady: function (e) {
+        parent.postMessage(
+          JSON.stringify({
+            eventId: "challenge-loaded",
+            publicKey: publicKey,
+            payload: { sessionToken: e.token },
+          }),
+          "*",
+        );
+      },
+      onSuppress: function (e) {
+        parent.postMessage(
+          JSON.stringify({
+            eventId: "challenge-suppressed",
+            publicKey: publicKey,
+            payload: { sessionToken: e.token },
+          }),
+          "*",
+        );
+      },
+      onShown: function (e) {
+        parent.postMessage(
+          JSON.stringify({
+            eventId: "challenge-shown",
+            publicKey: publicKey,
+            payload: { sessionToken: e.token },
+          }),
+          "*",
+        );
+      },
+      onError: function (e) {
+        parent.postMessage(
+          JSON.stringify({
+            eventId: "challenge-error",
+            publicKey: publicKey,
+            payload: { error: e.error },
+          }),
+          "*",
+        );
+      },
+      onFailed: function (e) {
+        parent.postMessage(
+          JSON.stringify({
+            eventId: "challenge-complete",
+            publicKey: publicKey,
+            payload: { sessionToken: e.token },
+          }),
+          "*",
+        );
+      },
+      onResize: function (e) {
+        var t = e && e.height ? e.height : 450,
+          n = e && e.width ? e.width : 400;
+        try {
+          "string" == typeof t &&
+            ((t = t.replace("px", "")),
+            (t = parseInt(t, 10)),
+            isNaN(t) && (t = 450)),
+            "string" == typeof n &&
+              ((n = n.replace("px", "")),
+              (n = parseInt(n, 10)),
+              isNaN(n) && (n = 400));
+        } catch (e) {
+          (t = 450), (n = 400);
+        }
+        parent.postMessage(
+          JSON.stringify({
+            eventId: "challenge-iframeSize",
+            publicKey: publicKey,
+            payload: { frameHeight: t, frameWidth: n },
+          }),
+          "*",
+        );
+      },
+    });
+}
+(script = document.createElement("script")),
+  (script.type = "text/javascript"),
+  (script.async = !0),
+  (script.defer = !0),
+  (script.src = "//client-api.arkoselabs.com/v2/" + publicKey + "/api.js"),
+  (script.onload = function () {
+    endTime = Date.now();
+  }),
+  script.setAttribute("data-callback", "setupEnforcement"),
+  document.getElementsByTagName("head")[0].appendChild(script);
